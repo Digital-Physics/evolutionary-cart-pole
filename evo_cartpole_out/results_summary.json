@@ -1,0 +1,8 @@
+{
+  "best_fitness": 200,
+  "best_gen": 32,
+  "seq_len": 200,
+  "population": 200,
+  "start_islands": 8,
+  "final_islands": 1
+}
