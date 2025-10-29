@@ -1,6 +1,6 @@
 {
-  "best_fitness": 200,
-  "best_gen": 32,
+  "best_fitness": 57,
+  "best_gen": 36,
   "seq_len": 200,
   "population": 200,
   "start_islands": 8,

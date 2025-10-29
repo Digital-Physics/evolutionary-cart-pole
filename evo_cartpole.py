@@ -38,21 +38,36 @@ def seeded_env(base_seed: int, render_mode: str = None):
         env = gym.make("CartPole-v1", render_mode=render_mode)
     return env
 
-def evaluate_sequence_return_fitness(sequence: np.ndarray, base_seed: int) -> int:
-    """Evaluate one sequence deterministically using base_seed.
-    Returns the total reward (int), i.e., number of steps survived (<= len(sequence)).
-    Uses a fresh env for safety (gym is lightweight to create)."""
-    env = seeded_env(base_seed)
-    # reset with the same seed for deterministic start
-    obs, info = env.reset(seed=base_seed)
-    total_reward = 0
-    for idx, action in enumerate(sequence):
-        obs, reward, terminated, truncated, info = env.step(int(action))
-        total_reward += reward
-        if terminated or truncated:
-            break
-    env.close()
-    return int(total_reward)
+# def evaluate_sequence_return_fitness(sequence: np.ndarray, base_seed: int) -> int:
+#     """Evaluate one sequence deterministically using base_seed.
+#     Returns the total reward (int), i.e., number of steps survived (<= len(sequence)).
+#     Uses a fresh env for safety (gym is lightweight to create)."""
+#     env = seeded_env(base_seed)
+#     # reset with the same seed for deterministic start
+#     obs, info = env.reset(seed=base_seed)
+#     total_reward = 0
+#     for idx, action in enumerate(sequence):
+#         obs, reward, terminated, truncated, info = env.step(int(action))
+#         total_reward += reward
+#         if terminated or truncated:
+#             break
+#     env.close()
+#     return int(total_reward)
+def evaluate_sequence_return_fitness(sequence: np.ndarray, base_seed: int, n_eval: int) -> float:
+    """Evaluate a sequence across multiple random seeds and return average reward."""
+    total = 0
+    for i in range(n_eval):
+        env = seeded_env(None)
+        obs, info = env.reset(seed=base_seed + i)
+        reward_sum = 0
+        for action in sequence:
+            obs, reward, terminated, truncated, info = env.step(int(action))
+            reward_sum += reward
+            if terminated or truncated:
+                break
+        env.close()
+        total += reward_sum
+    return total / n_eval
 
 # ----------------------------
 # Evolution helpers
@@ -65,12 +80,14 @@ class IslandOptimizer:
                  mutation_rate: float,
                  elite_frac: float,
                  base_seed: int,
+                 n_eval: int,
                  rng: np.random.RandomState):
         self.seq_len = seq_len
         self.pop_size = pop_size
         self.mutation_rate = mutation_rate
         self.elite_frac = elite_frac
         self.base_seed = base_seed
+        self.n_eval = n_eval
         self.rng = rng
 
         self.num_elite = max(1, int(np.ceil(self.pop_size * self.elite_frac)))
@@ -91,7 +108,9 @@ class IslandOptimizer:
         for i in range(self.pop_size):
             seq = self.population[i]
             # deterministic evaluation using same seed
-            fit = evaluate_sequence_return_fitness(seq, base_seed=self.base_seed)
+            #   fit = evaluate_sequence_return_fitness(seq, base_seed=self.base_seed)
+            fit = evaluate_sequence_return_fitness(seq, base_seed=self.base_seed, n_eval=self.n_eval)
+
             self.fitness[i] = fit
             if fit > self.best_fitness:
                 self.best_fitness = fit
@@ -176,6 +195,7 @@ def run_evolution(args):
                             mutation_rate=args.mutation_rate,
                             elite_frac=args.elite_frac,
                             base_seed=args.base_seed,
+                            n_eval=args.n_eval,
                             rng=np.random.RandomState(rng.randint(0, 2**31)))
         )
 
@@ -247,6 +267,7 @@ def run_evolution(args):
                                           mutation_rate=args.mutation_rate,
                                           elite_frac=args.elite_frac,
                                           base_seed=args.base_seed,
+                                          n_eval=args.n_eval,
                                           rng=isl_rng)
                 # Fill elites by sampling from kept_seqs (or random if not enough)
                 n_keep_here = min(len(kept_seqs), max(1, ps // 5))
@@ -348,6 +369,7 @@ def make_parser():
     t.add_argument("--seed", type=int, default=42, help="Random seed (controls rng)")
     t.add_argument("--base-seed", type=int, default=42, help="Base seed used for env.reset -> deterministic starts")
     t.add_argument("--out-dir", type=str, default="evo_cartpole_out", help="Output directory")
+    t.add_argument("--n-eval", type=int, default=10, help="Number of initiaial conditions the action sequence fitness is averaged over.")
     t.add_argument("--verbose", action="store_true")
     t.set_defaults(func=None)
 
@@ -380,6 +402,7 @@ def main():
             seed=args.seed,
             base_seed=args.base_seed,
             out_dir=args.out_dir,
+            n_eval=args.n_eval,
             verbose=args.verbose
         )
         best_file = run_evolution(evolve_args)
