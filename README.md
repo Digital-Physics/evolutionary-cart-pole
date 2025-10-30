@@ -1,8 +1,9 @@
 # Part 1: Evolutionary Cart Pole
 
-We use Evolutionary Algorithms to evolve a Left/Right action sequence solution.  
-We assume the pole is initialized the same, so we'll use the same random seed.
-This deterministic environment should help learning. We can relax this assumption later.  
+This repository uses Evolutionary Algorithms to evolve a Left/Right action sequence solution. 
+
+In part 1, we assume the pole is initialized the same, so we use the same random seed.
+This deterministic environment should help learning. We can relax this assumption in part 2.  
 
 We assume an episode can last at most 200 steps, and you get 1 reward per step. We generate sequences (a list) of length 200 "L"s and "R"s to start. This is an upper bound on the number of actions we'll need to take in an episode. At the end of the first generation, the fitness/total steps survived/total_reward will be used to determine who moves on and is mutated for the next generation.  
 
